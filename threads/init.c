@@ -65,6 +65,14 @@ static char **parse_options (char **argv);
 static void run_actions (char **argv);
 static void usage (void);
 
+/* Pintos OS 초기화 및 옵션 파싱 관련 전역 변수들 (사용자의 환경에 따라 다를 수 있음) */
+static bool quiet = false;
+static bool loader_enabled = false;
+static bool debug_enabled = false;
+
+/* MLFQS 플래그 전역 변수 정의 (init.h에 extern 선언됨) */
+bool thread_mlfqs = false;
+
 #ifdef FILESYS
 static void locate_block_devices (void);
 static void locate_block_device (enum block_type, const char *name);
@@ -143,6 +151,29 @@ main (void)
 
    The start and end of the BSS segment is recorded by the
    linker as _start_bss and _end_bss.  See kernel.lds. */
+
+static void parse_options (char **argv)
+{
+  /* 기존 옵션 파싱 로직을 유지하면서 -mlfqs 옵션만 추가합니다. */
+  for (; *argv != NULL; argv++)
+    {
+      if (!strcmp (*argv, "-q") || !strcmp (*argv, "--quiet"))
+        quiet = true;
+      else if (!strcmp (*argv, "-l") || !strcmp (*argv, "--loader-ok"))
+        loader_enabled = true;
+      /* 요구사항 3: Simplified MLFQS 활성화 플래그 파싱 */
+      else if (!strcmp (*argv, "-mlfqs") || !strcmp (*argv, "--mlfqs"))
+        thread_mlfqs = true;
+      else if (!strcmp (*argv, "-debug"))
+        debug_enabled = true;
+      /* 다른 옵션 처리 (userprog, vm 등의 옵션도 여기에 포함될 수 있습니다.) */
+      else
+        {
+          /* 미지의 옵션 처리 로직... */
+        }
+    }
+}
+
 static void
 bss_init (void)
 {
