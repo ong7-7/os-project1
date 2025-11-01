@@ -105,6 +105,7 @@ struct thread
     char name[16];             /* Name (for debugging purposes). */
     uint8_t *stack;            /* Saved stack pointer. */
     int priority;              /* Priority. */
+    int original_priority;
     struct list_elem allelem;  /* List element for all threads list. */
 
     /* Shared between thread.c and synch.c. */
@@ -123,6 +124,8 @@ struct thread
 
     /* 요구사항 3: MLFQS 큐 레벨 (0=Q0, 1=Q1, 2=Q2) */
     int mlfqs_level; 
+    int queue_level;
+    int time_slice_remaining;
 
     /* Owned by thread.c. */
     unsigned magic; /* Detects stack overflow. */
