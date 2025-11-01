@@ -398,6 +398,20 @@ thread_yield (void)
    If so, yields the CPU immediately (preemption). */
 /* 요구사항 1: 선점 체크 함수 */
 void
+thread_set_priority (int new_priority)
+{
+    enum intr_level old_level = intr_disable ();
+    struct thread *cur = thread_current ();
+
+    cur->priority = new_priority;
+
+    /* ready_list의 최고 우선순위가 현재 스레드보다 높으면 선점 */
+    thread_check_preemption ();
+
+    intr_set_level (old_level);
+}
+
+void
 thread_check_preemption (void)
 {
     /* 이미 인터럽트 비활성화 상태에서 호출된다고 가정 */
@@ -406,7 +420,6 @@ thread_check_preemption (void)
 
     struct thread *next = list_entry (list_front (&ready_list), struct thread, elem);
 
-    /* ready_list의 최고 우선순위가 현재 스레드보다 높으면 선점 */
     if (next->priority > thread_current ()->priority)
         thread_yield ();
 }
@@ -424,23 +437,6 @@ thread_foreach (thread_action_func *func, void *aux)
             struct thread *t = list_entry (e, struct thread, allelem);
             func (t, aux);
         }
-}
-
-/* Sets the current thread's priority to NEW_PRIORITY. */
-void
-thread_set_priority (int new_priority)
-{
-    enum intr_level old_level = intr_disable ();
-    struct thread *cur = thread_current ();
-
-    int old_priority = cur->priority;  /* 기존 우선순위 저장 */
-    cur->priority = new_priority;
-
-    /* 기존보다 우선순위가 낮아진 경우에만 선점 여부 확인 */
-    if (new_priority < old_priority)
-        thread_check_preemption ();
-
-    intr_set_level (old_level);
 }
 
 /* Returns the current thread's priority. */
