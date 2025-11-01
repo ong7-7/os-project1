@@ -68,10 +68,14 @@ sema_down (struct semaphore *sema)
     old_level = intr_disable ();
     while (sema->value == 0)
         {
-            list_push_back (&sema->waiters, &thread_current ()->elem);
+            /* 요구사항 1: 세마포어 대기열에 우선순위 순으로 삽입 */
+            list_insert_ordered (&sema->waiters, &thread_current ()->elem,
+                           thread_cmp_priority, NULL);
             thread_block ();
         }
     sema->value--;
+   /* 요구사항 1: Unblock된 스레드가 현재 스레드보다 우선순위가 높으면 즉시 선점 체크 */
+    thread_check_preemption ();
     intr_set_level (old_level);
 }
 
@@ -108,16 +112,22 @@ sema_try_down (struct semaphore *sema)
 void
 sema_up (struct semaphore *sema)
 {
-    enum intr_level old_level;
+  enum intr_level old_level;
 
-    ASSERT (sema != NULL);
+  ASSERT (sema != NULL);
 
-    old_level = intr_disable ();
-    if (!list_empty (&sema->waiters))
-        thread_unblock (list_entry (list_pop_front (&sema->waiters),
-                                    struct thread, elem));
-    sema->value++;
-    intr_set_level (old_level);
+  old_level = intr_disable ();
+  if (!list_empty (&sema->waiters))
+    {
+      /* 요구사항 1: 대기열의 가장 높은 우선순위 스레드를 unblock */
+      struct thread *t = list_entry (list_pop_front (&sema->waiters), struct thread, elem);
+      thread_unblock (t);
+    }
+  sema->value++;
+  
+  /* thread_unblock에서 이미 선점 체크를 하므로 여기서는 불필요 */
+  
+  intr_set_level (old_level);
 }
 
 static void sema_test_helper (void *sema_);
@@ -179,6 +189,8 @@ lock_init (struct lock *lock)
 
     lock->holder = NULL;
     sema_init (&lock->semaphore, 1);
+   /* 락 대기열 초기화 (우선순위 역전 방지 기능을 구현할 때 사용) */
+    list_init (&lock->waiters); 
 }
 
 /* Acquires LOCK, sleeping until it becomes available if
@@ -294,11 +306,14 @@ cond_wait (struct condition *cond, struct lock *lock)
     ASSERT (!intr_context ());
     ASSERT (lock_held_by_current_thread (lock));
 
-    sema_init (&waiter.semaphore, 0);
-    list_push_back (&cond->waiters, &waiter.elem);
+    old_level = intr_disable ();
+  /* 요구사항 1: 조건 변수 대기열에 우선순위 순으로 삽입 */
+    list_insert_ordered (&cond->waiters, &thread_current ()->elem,
+                       thread_cmp_priority, NULL);
     lock_release (lock);
-    sema_down (&waiter.semaphore);
+    thread_block ();
     lock_acquire (lock);
+    intr_set_level (old_level);
 }
 
 /* If any threads are waiting on COND (protected by LOCK), then
@@ -311,15 +326,21 @@ cond_wait (struct condition *cond, struct lock *lock)
 void
 cond_signal (struct condition *cond, struct lock *lock UNUSED)
 {
+    enum intr_level old_level;
+   
     ASSERT (cond != NULL);
     ASSERT (lock != NULL);
     ASSERT (!intr_context ());
     ASSERT (lock_held_by_current_thread (lock));
 
+    old_level = intr_disable ();
     if (!list_empty (&cond->waiters))
-        sema_up (&list_entry (list_pop_front (&cond->waiters),
-                              struct semaphore_elem, elem)
-                      ->semaphore);
+        {
+      /* 요구사항 1: 대기열의 가장 높은 우선순위 스레드를 unblock */
+      struct thread *t = list_entry (list_pop_front (&cond->waiters), struct thread, elem);
+      thread_unblock (t);
+    }
+  intr_set_level (old_level);
 }
 
 /* Wakes up all threads, if any, waiting on COND (protected by
@@ -334,6 +355,12 @@ cond_broadcast (struct condition *cond, struct lock *lock)
     ASSERT (cond != NULL);
     ASSERT (lock != NULL);
 
-    while (!list_empty (&cond->waiters))
-        cond_signal (cond, lock);
+    old_level = intr_disable ();
+  /* 요구사항 1: 모든 대기 스레드를 우선순위 순으로 unblock */
+  while (!list_empty (&cond->waiters))
+    {
+      struct thread *t = list_entry (list_pop_front (&cond->waiters), struct thread, elem);
+      thread_unblock (t);
+    }
+  intr_set_level (old_level);
 }
