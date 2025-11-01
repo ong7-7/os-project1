@@ -313,3 +313,36 @@ semaphore_elem_priority_cmp (const struct list_elem *a,
     else
         return false; /* equal or lower -> inserted after (preserve FIFO on equal) */
 }
+
+/* 리스트 내 semaphore_elem들의 우선순위에 따라 다시 정렬 */
+void
+list_reorder_by_priority(struct list *waiters)
+{
+    struct list_elem *e;
+    if (list_empty(waiters))
+        return;
+
+    struct list sorted_list;
+    list_init(&sorted_list);
+
+    while (!list_empty(waiters))
+    {
+        e = list_pop_front(waiters);
+        struct list_elem *inserted = list_begin(&sorted_list);
+        while (inserted != list_end(&sorted_list))
+        {
+            struct semaphore_elem *se1 = list_entry(e, struct semaphore_elem, elem);
+            struct semaphore_elem *se2 = list_entry(inserted, struct semaphore_elem, elem);
+            if (se1->priority > se2->priority)
+                break;
+            inserted = list_next(inserted);
+        }
+        list_insert(inserted, e);
+    }
+
+    /* 원래 waiters 리스트에 다시 연결 */
+    while (!list_empty(&sorted_list))
+    {
+        list_push_back(waiters, list_pop_front(&sorted_list));
+    }
+}
