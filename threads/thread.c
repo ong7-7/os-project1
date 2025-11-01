@@ -83,6 +83,11 @@ static void schedule (void);
 void thread_schedule_tail (struct thread *prev);
 static tid_t allocate_tid (void);
 
+static void thread_set_priority(int new_priority);
+int thread_get_priority(void);
+
+static void thread_update_priority(struct thread *t)
+
 /* Function to compare two list elements based on thread priority. */
 /* 요구사항 1: ready_list 및 동기화 대기열 정렬에 사용 */
 bool
@@ -405,10 +410,26 @@ thread_set_priority (int new_priority)
 
     cur->priority = new_priority;
 
+    list_reorder_by_priority(&cur->lock_waiters);
+    list_reorder_by_priority(&cur->cond_waiters);
+
+    // 우선순위에 따라 선점 필요 시 스케줄러 호출
     /* ready_list의 최고 우선순위가 현재 스레드보다 높으면 선점 */
     thread_check_preemption ();
 
     intr_set_level (old_level);
+}
+
+/* 예시: 현재 스레드의 lock 대기열 재정렬 */
+void
+thread_update_priority(struct thread *t)
+{
+    /* 현재 스레드가 기다리고 있는 lock이나 condition이 있다면 재정렬 */
+    if (!list_empty(&t->lock_waiters))
+        list_reorder_by_priority(&t->lock_waiters);
+
+    if (!list_empty(&t->cond_waiters))
+        list_reorder_by_priority(&t->cond_waiters);
 }
 
 void
