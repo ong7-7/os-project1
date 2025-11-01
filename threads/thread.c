@@ -400,22 +400,16 @@ thread_yield (void)
 void
 thread_check_preemption (void)
 {
-  enum intr_level old_level;
+    /* 이미 인터럽트 비활성화 상태에서 호출된다고 가정 */
+    if (list_empty (&ready_list))
+        return;
 
-  if (list_empty (&ready_list))
-    return;
+    struct thread *next = list_entry (list_front (&ready_list), struct thread, elem);
 
-  old_level = intr_disable ();
-  
-  struct thread *next = list_entry (list_front (&ready_list), struct thread, elem);
-  
-  /* ready_list의 최고 우선순위가 현재 스레드보다 높으면 선점 */
-  if (next->priority > thread_current ()->priority)
-    thread_yield ();
-
-  intr_set_level (old_level);
+    /* ready_list의 최고 우선순위가 현재 스레드보다 높으면 선점 */
+    if (next->priority > thread_current ()->priority)
+        thread_yield ();
 }
-
 /* Invoke function 'func' on all threads, passing along 'aux'. */
 void
 thread_foreach (thread_action_func *func, void *aux)
@@ -436,15 +430,16 @@ thread_foreach (thread_action_func *func, void *aux)
 void
 thread_set_priority (int new_priority)
 {
+    enum intr_level old_level = intr_disable ();
     struct thread *cur = thread_current ();
-    enum intr_level old_level;
 
-    old_level = intr_disable ();
+    int old_priority = cur->priority;  /* 기존 우선순위 저장 */
     cur->priority = new_priority;
-    
-    /* 요구사항 1: 우선순위가 낮아지거나 변경되면 선점 체크 */
-    thread_check_preemption ();
-    
+
+    /* 기존보다 우선순위가 낮아진 경우에만 선점 여부 확인 */
+    if (new_priority < old_priority)
+        thread_check_preemption ();
+
     intr_set_level (old_level);
 }
 
