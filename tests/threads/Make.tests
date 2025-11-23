@@ -1,0 +1,12 @@
+# -*- makefile -*-
+
+# Test names.
+tests/threads_TESTS = $(addprefix tests/threads/,firstfit nextfit bestfit buddy)
+
+# Sources for tests.
+tests/threads_SRC  = tests/threads/tests.c
+tests/threads_SRC += tests/threads/firstfit.c
+tests/threads_SRC += tests/threads/nextfit.c
+tests/threads_SRC += tests/threads/bestfit.c
+tests/threads_SRC += tests/threads/buddy.c
+

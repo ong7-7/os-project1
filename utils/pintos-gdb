@@ -1,0 +1,23 @@
+#! /bin/sh
+
+# Path to GDB macros file (relative to repository root).
+SCRIPTDIR="$(dirname "$(realpath "$0")")"
+GDBMACROS="$SCRIPTDIR/../misc/gdb-macros"
+
+# Choose correct GDB with priority: gdb-multiarch -> i386-elf-gdb -> gdb
+if command -v gdb-multiarch >/dev/null 2>&1; then
+	GDB=gdb-multiarch
+elif command -v i386-elf-gdb >/dev/null 2>&1; then
+	GDB=i386-elf-gdb
+else
+	GDB=gdb
+fi
+
+# Run GDB.
+if test -f "$GDBMACROS"; then
+	exec $GDB -x "$GDBMACROS" "$@"
+else
+	echo "*** $GDBMACROS does not exist ***"
+	echo "*** Pintos GDB macros will not be available ***"
+	exec $GDB "$@"
+fi
