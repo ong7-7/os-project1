@@ -111,15 +111,15 @@ cd <your-repository-name>
 ```bash
 cd threads/
 make
-../utils/pintos -- run firstfit 
+perl ../utils/pintos -- run firstfit 
 ```
 
 각 테스트 케이스의 실행은 다음과 같다:
 ```bash
-../utils/pintos -- run firstfit 
-../utils/pintos -- run nextfit
-../utils/pintos -- run bestfit 
-../utils/pintos -- run buddy
+perl ../utils/pintos -- run firstfit 
+perl ../utils/pintos -- run nextfit
+perl ../utils/pintos -- run bestfit 
+perl ../utils/pintos -- run buddy
 ```
 전체 테스트는 `make check`로 실행 가능하게 작성되어 있다. 
 
