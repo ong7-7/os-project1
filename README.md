@@ -111,15 +111,20 @@ cd <your-repository-name>
 ```bash
 cd threads/
 make
-perl ../utils/pintos -- run firstfit 
+../utils/pintos -- run firstfit 
+```
+
+만약 pintos 스크립트의 실행 권한이 없을 경우 다음과 같이 권한을 수정한다:
+```bash
+chmod +x ../utils/pintos
 ```
 
 각 테스트 케이스의 실행은 다음과 같다:
 ```bash
-perl ../utils/pintos -- run firstfit 
-perl ../utils/pintos -- run nextfit
-perl ../utils/pintos -- run bestfit 
-perl ../utils/pintos -- run buddy
+../utils/pintos -- run firstfit 
+../utils/pintos -- run nextfit
+../utils/pintos -- run bestfit 
+../utils/pintos -- run buddy
 ```
 전체 테스트는 `make check`로 실행 가능하게 작성되어 있다. 
 
