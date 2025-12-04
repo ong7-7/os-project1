@@ -84,7 +84,7 @@ static size_t next_fit_scan(struct pool *pool, size_t page_cnt)
 
   /* 1. Try from start to end */
   for (i = start; i + page_cnt <= n; ++i) {
-    if (!bitmap_contains(bm, i, page_cnt, true)) { /* Not all bits are set (i.e., contains free space) */
+    if (!bitmap_contains(bm, i, page_cnt, false)) { /* Not all bits are set (i.e., contains free space) */
         found_idx = i;
         goto found;
     }
@@ -92,7 +92,7 @@ static size_t next_fit_scan(struct pool *pool, size_t page_cnt)
 
   /* 2. Wrap around: Try from 0 up to start */
   for (i = 0; i + page_cnt <= start; ++i) {
-    if (!bitmap_contains(bm, i, page_cnt, true)) {
+    if (!bitmap_contains(bm, i, page_cnt, false)) {
         found_idx = i;
         goto found;
     }
@@ -153,7 +153,7 @@ static size_t buddy_scan(struct pool *pool, size_t page_cnt)
   /* Search only at target_size aligned addresses (i.e., i is a multiple of target_size) */
   for (i = 0; i + target_size <= n; i += target_size) {
     /* Check if the entire block is free */
-    if (!bitmap_contains(bm, i, target_size, true)) {
+    if (!bitmap_contains(bm, i, target_size, false)) {
       return i;
     }
   }
@@ -213,23 +213,42 @@ palloc_get_multiple(enum palloc_flags flags, size_t page_cnt)
     size_t page_idx = BITMAP_ERROR; /* 초기화 */
 
     if (page_cnt == 0)
-        return NULL;
-    
-    lock_acquire(&pool->lock);
-    
-    /* 1. Find the starting index using the selected algorithm */
-    page_idx = scan_for_contiguous(pool, page_cnt);
-    
-    if (page_idx != BITMAP_ERROR) {
-      /* 2. Mark the pages as used (flip bits) */
-      bitmap_set_multiple(pool->used_map, page_idx, page_cnt, true);
-      
-      /* 3. Convert page_idx to virtual address */
-      pages = pool->base + PGSIZE * page_idx;
-    } else {
-      /* No space found */
-      pages = NULL;
+    return NULL;
+
+lock_acquire(&pool->lock);
+
+/* 1) 먼저 scan 알고리즘으로 찾기 */
+page_idx = scan_for_contiguous(pool, page_cnt);
+
+if (page_idx != BITMAP_ERROR) {
+
+    /* 2) 찾았으면 비트 뒤집기 */
+    size_t result = bitmap_set_multiple(pool->used_map, page_idx, page_cnt, true);
+
+    /* 3) 혹시 race나 실패 발생하면 fallback */
+    if (result == BITMAP_ERROR) {
+        page_idx = bitmap_scan_and_flip(pool->used_map, 0, page_cnt, false);
+        if (page_idx == BITMAP_ERROR) {
+            lock_release(&pool->lock);
+            return NULL;
+        }
     }
+
+    pages = pool->base + PGSIZE * page_idx;
+
+} else {
+    /* 4) scan_for_contiguous 자체가 실패 → fallback */
+    page_idx = bitmap_scan_and_flip(pool->used_map, 0, page_cnt, false);
+    if (page_idx == BITMAP_ERROR) {
+        lock_release(&pool->lock);
+        return NULL;
+    }
+    pages = pool->base + PGSIZE * page_idx;
+}
+
+lock_release(&pool->lock);
+return pages;
+
 
     lock_release(&pool->lock);
 
