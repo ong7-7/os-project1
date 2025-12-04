@@ -340,4 +340,3 @@ page_from_pool(const struct pool *pool, void *page)
 
     return page_no >= start_page && page_no < end_page;
 }
-
