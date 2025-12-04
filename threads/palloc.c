@@ -204,54 +204,44 @@ void palloc_init(size_t user_page_limit)
               user_pages, "user pool");
 }
 
-/* Obtains and returns a group of PAGE_CNT contiguous free pages. ... (기존 주석) */
 void *
 palloc_get_multiple(enum palloc_flags flags, size_t page_cnt)
 {
     struct pool *pool = flags & PAL_USER ? &user_pool : &kernel_pool;
-    void *pages;
-    size_t page_idx = BITMAP_ERROR; /* 초기화 */
+    void *pages = NULL;
+    size_t page_idx = BITMAP_ERROR;
 
     if (page_cnt == 0)
-    return NULL;
+        return NULL;
 
-lock_acquire(&pool->lock);
+    lock_acquire(&pool->lock);
 
-/* 1) 먼저 scan 알고리즘으로 찾기 */
-page_idx = scan_for_contiguous(pool, page_cnt);
-
-if (page_idx != BITMAP_ERROR) {
-
-    /* 2) 찾았으면 비트 뒤집기 */
-    size_t result = bitmap_set_multiple(pool->used_map, page_idx, page_cnt, true);
-
-    /* 3) 혹시 race나 실패 발생하면 fallback */
-    if (result == BITMAP_ERROR) {
+    /* If user pool OR First-Fit mode: use atomic bitmap_scan_and_flip
+       This preserves original Pintos First-Fit behavior. */
+    if (pool == &user_pool || current_palloc_mode == PAL_FIRST_FIT) {
         page_idx = bitmap_scan_and_flip(pool->used_map, 0, page_cnt, false);
-        if (page_idx == BITMAP_ERROR) {
-            lock_release(&pool->lock);
-            return NULL;
+        if (page_idx != BITMAP_ERROR) {
+            pages = pool->base + PGSIZE * page_idx;
+        } else {
+            pages = NULL;
+        }
+    } else {
+        /* Other modes: use scan_for_contiguous (non-atomic scan),
+           then mark bits with bitmap_set_multiple within the lock. */
+        page_idx = scan_for_contiguous(pool, page_cnt);
+        if (page_idx != BITMAP_ERROR) {
+            /* bitmap_set_multiple is void in many Pintos ports;
+               it marks the bits as used. */
+            bitmap_set_multiple(pool->used_map, page_idx, page_cnt, true);
+            pages = pool->base + PGSIZE * page_idx;
+        } else {
+            pages = NULL;
         }
     }
 
-    pages = pool->base + PGSIZE * page_idx;
-
-} else {
-    /* 4) scan_for_contiguous 자체가 실패 → fallback */
-    page_idx = bitmap_scan_and_flip(pool->used_map, 0, page_cnt, false);
-    if (page_idx == BITMAP_ERROR) {
-        lock_release(&pool->lock);
-        return NULL;
-    }
-    pages = pool->base + PGSIZE * page_idx;
-}
-
-lock_release(&pool->lock);
-return pages;
-
-
     lock_release(&pool->lock);
 
+    /* Handle PAL_ZERO and PAL_ASSERT outside the lock. */
     if (pages != NULL) {
         if (flags & PAL_ZERO)
             memset(pages, 0, PGSIZE * page_cnt);
@@ -338,8 +328,6 @@ init_pool(struct pool *p, void *base, size_t page_cnt, const char *name)
     if (bm_pages > page_cnt)
         PANIC("Not enough memory in %s for bitmap.", name);
     page_cnt -= bm_pages;
-
-    printf("%zu pages available in %s.\n", page_cnt, name);
 
     /* Initialize the pool. */
     lock_init(&p->lock);
