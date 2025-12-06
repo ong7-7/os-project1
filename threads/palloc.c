@@ -1,7 +1,5 @@
 #include "threads/palloc.h"
 #include "threads/malloc.h"
-#include "lib/kernel/bitmap.h"
-#include "lock.h"
 #include <bitmap.h>
 #include <debug.h>
 #include <inttypes.h>
