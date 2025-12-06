@@ -5,6 +5,23 @@
 #include <list.h>
 #include <stdint.h>
 
+#include <hash.h>
+#include <stdbool.h>
+#include "threads/init.h" // PRI_DEFAULT와 thread_mlfqs 사용을 위해 포함
+
+typedef int pri_t;
+#define PRI_MIN 0                       /* Lowest priority. */
+#define PRI_DEFAULT 31                  /* Default priority. */
+#define PRI_MAX 63                      /* Highest priority. */
+
+/* 요구사항 3: MLFQS 큐 레벨에 따른 우선순위 티어 설정 (Q0이 가장 높음) */
+#define PRI_MLFQS_Q0 (PRI_MAX)          /* Q0 Highest Priority Tier */
+#define PRI_MLFQS_Q1 (PRI_MAX - 1)      /* Q1 Mid Priority Tier */
+#define PRI_MLFQS_Q2 (PRI_MAX - 2)      /* Q2 Lowest Priority Tier */
+
+/* 요구사항 2 & 3: Aging 관련 상수 */
+#define AGING_THRESHOLD 20              /* 에이징 발생 임계값 (20틱) */
+
 /* States in a thread's life cycle. */
 enum thread_status
 {
@@ -88,6 +105,7 @@ struct thread
     char name[16];             /* Name (for debugging purposes). */
     uint8_t *stack;            /* Saved stack pointer. */
     int priority;              /* Priority. */
+    int original_priority;
     struct list_elem allelem;  /* List element for all threads list. */
 
     /* Shared between thread.c and synch.c. */
@@ -100,6 +118,14 @@ struct thread
 
     /* For timer_sleep() */
     int64_t wakeup_tick;
+
+    /* 요구사항 2 & 3: 에이징 및 MLFQS 관리를 위한 age 값 */
+    int age;
+
+    /* 요구사항 3: MLFQS 큐 레벨 (0=Q0, 1=Q1, 2=Q2) */
+    int mlfqs_level; 
+    int queue_level;
+    int time_slice_remaining;
 
     /* Owned by thread.c. */
     unsigned magic; /* Detects stack overflow. */
@@ -144,5 +170,12 @@ int thread_get_nice (void);
 void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
+
+/* 요구사항 1: 선점 체크 및 스케줄링 */
+void thread_check_preemption (void);
+
+/* 요구사항 2 & 3: 에이징 및 MLFQS 승급/강등 로직 */
+void thread_aging (void);
+void mlfqs_demote_or_promote(void);
 
 #endif /* threads/thread.h */
