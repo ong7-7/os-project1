@@ -348,3 +348,17 @@ void bitmap_dump(const struct bitmap *b)
 {
     hex_dump(0, b->bits, byte_cnt(b->bit_cnt), false);
 }
+
+bool
+bitmap_contains (const struct bitmap *bitmap, size_t start, size_t cnt, bool value) 
+{
+  if (start + cnt > bitmap->size)
+    return false;
+
+  size_t i;
+  for (i = 0; i < cnt; i++)
+    if (bitmap_test (bitmap, start + i) != value)
+      return false;
+      
+  return true;
+}
