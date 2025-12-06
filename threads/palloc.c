@@ -214,12 +214,6 @@ void palloc_init(size_t user_page_limit)
               user_pages, "user pool");
 }
 
-// 추가가
-static size_t
-first_fit_scan (struct bitmap* used_map, size_t page_cnt) {
-    return bitmap_scan (used_map, 0, page_cnt, false);
-}
-
 /* Obtains and returns a group of PAGE_CNT contiguous free pages.
    If PAL_USER is set, the pages are obtained from the user pool,
    otherwise from the kernel pool.  If PAL_ZERO is set in FLAGS,
@@ -237,6 +231,8 @@ palloc_get_multiple(enum palloc_flags flags, size_t page_cnt)
         return NULL;
 
     lock_acquire(&pool->lock);
+   
+   enum palloc_flags current_strategy;
 
    if (pool == &user_pool)
     current_strategy = PAL_FIRST_FIT;
@@ -245,29 +241,26 @@ palloc_get_multiple(enum palloc_flags flags, size_t page_cnt)
 
     /* If user pool OR First-Fit mode: use atomic bitmap_scan_and_flip
        This preserves original Pintos First-Fit behavior and simplifies the user pool. */
-    switch (current_palloc_mode) {
+switch (current_strategy) {
+  case PAL_FIRST_FIT:
+    page_idx = first_fit_scan(pool, page_cnt);
+    break;
 
-    case PAL_FIRST_FIT:
-        page_idx = bitmap_scan_and_flip(pool->used_map, 0, page_cnt, false);
-        break;
+  case PAL_NEXT_FIT:
+    page_idx = next_fit_scan(pool, page_cnt);
+    break;
 
-    case PAL_NEXT_FIT:
-        page_idx = next_fit_scan(pool, page_cnt);
-        /* 채택되었다면 수동으로 set 수행 */
-        if (page_idx != BITMAP_ERROR)
-            bitmap_set_multiple(pool->used_map, page_idx, page_cnt, true);
-        break;
+  case PAL_BEST_FIT:
+    page_idx = best_fit_scan(pool, page_cnt);
+    break;
 
-    case PAL_BEST_FIT:
-        page_idx = best_fit_scan(pool, page_cnt);
-        if (page_idx != BITMAP_ERROR)
-            bitmap_set_multiple(pool->used_map, page_idx, page_cnt, true);
-        break;
+  case PAL_BUDDY:
+    page_idx = buddy_scan(pool, page_cnt);
+    break;
 
-    default:
-        /* fallback: just do first fit */
-        page_idx = bitmap_scan_and_flip(pool->used_map, 0, page_cnt, false);
-        break;
+  default:
+    page_idx = BITMAP_ERROR;
+    break;
 }
 
 if (page_idx != BITMAP_ERROR)
