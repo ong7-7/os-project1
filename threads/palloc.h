@@ -1,5 +1,6 @@
 #ifndef THREADS_PALLOC_H
 #define THREADS_PALLOC_H
+#define MAX_ORDER 10
 
 
 #include <stddef.h>
