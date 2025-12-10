@@ -36,11 +36,19 @@ struct pool
 /* Two pools: one for kernel data, one for user pages. */
 static struct pool kernel_pool, user_pool;
 
+static enum palloc_mode current_palloc_mode = PAL_FIRST_FIT;
+// 기본값은 First Fit
+
 static void init_pool (struct pool *, void *base, size_t page_cnt,
                        const char *name);
 static bool page_from_pool (const struct pool *, void *page);
 
 void palloc_set_mode (enum palloc_mode mode);
+
+
+void palloc_set_mode (enum palloc_mode mode) {
+    current_palloc_mode = mode;
+}
 
 /* Initializes the page allocator.  At most USER_PAGE_LIMIT
    pages are put into the user pool. */
@@ -183,6 +191,3 @@ page_from_pool (const struct pool *pool, void *page)
     return page_no >= start_page && page_no < end_page;
 }
 
-void palloc_set_mode (enum palloc_mode mode) {
-    // 작업 x
-}
