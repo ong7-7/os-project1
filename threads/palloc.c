@@ -95,29 +95,7 @@ palloc_get_multiple (enum palloc_flags flags, size_t page_cnt)
     lock_acquire (&pool->lock);
     page_idx = bitmap_scan_and_flip (pool->used_map, 0, page_cnt, false);
     lock_release (&pool->lock);
-
-   // 할당 모드에 따른 분기 처리
-   switch (current_palloc_mode) {
-        case PAL_FIRST_FIT:
-            // 기존의 First Fit 로직 (bitmap_scan_and_flip을 사용)
-            page_idx = bitmap_scan_and_flip (pool->used_map, 0, page_cnt, false);
-            break;
-        case PAL_NEXT_FIT:
-            // Next Fit 할당 로직 호출 (추가 구현 필요)
-            page_idx = next_fit_scan_and_flip (pool->used_map, page_cnt, false);
-            break;
-        case PAL_BEST_FIT:
-            // Best Fit 할당 로직 호출 (추가 구현 필요)
-            page_idx = best_fit_scan_and_flip (pool->used_map, page_cnt, false);
-            break;
-        case PAL_BUDDY:
-            // Buddy System 할당 로직 호출 (추가 구현 필요)
-            page_idx = buddy_system_alloc (pool, page_cnt);
-            break;
-        default:
-            NOT_REACHED ();
-    }
-
+   
     if (page_idx != BITMAP_ERROR)
         pages = pool->base + PGSIZE * page_idx;
     else
