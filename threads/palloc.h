@@ -1,6 +1,7 @@
 #ifndef THREADS_PALLOC_H
 #define THREADS_PALLOC_H
 
+
 #include <stddef.h>
 
 /* How to allocate pages. */
@@ -16,6 +17,8 @@ void *palloc_get_multiple(enum palloc_flags, size_t page_cnt);
 void palloc_free_page(void *);
 void palloc_free_multiple(void *, size_t page_cnt);
 size_t palloc_get_page_index(void *page);
+void buddy_system_free (struct pool *pool, void *pages);
+size_t buddy_system_alloc (struct pool *pool, size_t page_cnt);
 
 
 
