@@ -31,6 +31,11 @@ struct pool
     struct lock lock;        /* Mutual exclusion. */
     struct bitmap *used_map; /* Bitmap of free pages. */
     uint8_t *base;           /* Base of pool. */
+
+/* Buddy System을 위한 추가 필드 */
+    struct list free_list[MAX_ORDER + 1]; // 예를 들어, 0 ~ MAX_ORDER 크기의 자유 리스트
+    size_t max_order; // 최대 블록 크기의 order
+    size_t *block_order; // 각 페이지의 order를 저장하는 배열 (선택)
 };
 
 /* Two pools: one for kernel data, one for user pages. */
