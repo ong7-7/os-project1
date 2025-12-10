@@ -184,5 +184,5 @@ page_from_pool (const struct pool *pool, void *page)
 }
 
 void palloc_set_mode (enum palloc_mode mode) {
-    // 이 함수는 threads 프로젝트에서 아무 작업도 하지 않습니다.
+    // 작업 x
 }
