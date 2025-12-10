@@ -32,6 +32,8 @@ struct pool
     struct bitmap *used_map; /* Bitmap of free pages. */
     uint8_t *base;           /* Base of pool. */
 
+    size_t next_fit_start_idx; /* Next Fit의 검색 시작 지점 */
+
 /* Buddy System을 위한 추가 필드 */
     struct list free_list[MAX_ORDER + 1]; // 예를 들어, 0 ~ MAX_ORDER 크기의 자유 리스트
     size_t max_order; // 최대 블록 크기의 order
