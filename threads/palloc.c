@@ -40,6 +40,8 @@ static void init_pool (struct pool *, void *base, size_t page_cnt,
                        const char *name);
 static bool page_from_pool (const struct pool *, void *page);
 
+void palloc_set_mode (enum palloc_mode mode);
+
 /* Initializes the page allocator.  At most USER_PAGE_LIMIT
    pages are put into the user pool. */
 void
@@ -179,4 +181,8 @@ page_from_pool (const struct pool *pool, void *page)
     size_t end_page = start_page + bitmap_size (pool->used_map);
 
     return page_no >= start_page && page_no < end_page;
+}
+
+void palloc_set_mode (enum palloc_mode mode) {
+    // 이 함수는 threads 프로젝트에서 아무 작업도 하지 않습니다.
 }
