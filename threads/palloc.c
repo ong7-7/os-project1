@@ -142,23 +142,25 @@ palloc_free_multiple (void *pages, size_t page_cnt)
     if (pages == NULL || page_cnt == 0)
         return;
 
-    if (current_palloc_mode == PAL_BUDDY) {
-        /* Buddy System 해제(병합) 로직 호출 (추가 구현 필요) */
-        buddy_system_free (pool, pages);
-    } else {
-        /* First/Next/Best Fit 해제 로직 (기존과 동일) */
-        ASSERT (bitmap_all (pool->used_map, page_idx, page_cnt));
-        bitmap_set_multiple (pool->used_map, page_idx, page_cnt, false);
-    }
+    if (page_from_pool (&kernel_pool, pages))
+       pool = &kernel_pool;
+    else if (page_from_pool (&user_pool, pages))
+       pool = &user_pool;
+    else
+       NOT_REACHED ();
 
     page_idx = pg_no (pages) - pg_no (pool->base);
 
-#ifndef NDEBUG
-    memset (pages, 0xcc, PGSIZE * page_cnt);
-#endif
+   #ifndef NDEBUG
+      memset (pages, 0xcc, PGSIZE * page_cnt);
+   #endif
 
-    ASSERT (bitmap_all (pool->used_map, page_idx, page_cnt));
-    bitmap_set_multiple (pool->used_map, page_idx, page_cnt, false);
+    if (current_palloc_mode == PAL_BUDDY) {
+       buddy_system_free (pool, pages);
+    } else {
+       ASSERT (bitmap_all (pool->used_map, page_idx, page_cnt));
+       bitmap_set_multiple (pool->used_map, page_ide, page_cnt, false);
+    }
 }
 
 /* Frees the page at PAGE. */
