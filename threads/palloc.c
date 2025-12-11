@@ -159,7 +159,7 @@ palloc_free_multiple (void *pages, size_t page_cnt)
        buddy_system_free (pool, pages);
     } else {
        ASSERT (bitmap_all (pool->used_map, page_idx, page_cnt));
-       bitmap_set_multiple (pool->used_map, page_ide, page_cnt, false);
+       bitmap_set_multiple (pool->used_map, page_idx, page_cnt, false);
     }
 }
 
