@@ -310,6 +310,16 @@ bitmap_scan (const struct bitmap *b, size_t start, size_t cnt, bool value)
     return BITMAP_ERROR;
 }
 
+size_t
+bitmap_scan_best_fit (const struct bitmap *b, size_t cnt, bool value)
+{
+}
+
+size_t
+bitmap_scan_and_flip_best_fit (struct bitmap *b, size_t cnt, bool value)
+{
+}
+
 /* Finds the first group of CNT consecutive bits in B at or after
    START that are all set to VALUE, flips them all to !VALUE,
    and returns the index of the first bit in the group.
