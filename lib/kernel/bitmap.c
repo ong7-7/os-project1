@@ -311,6 +311,45 @@ bitmap_scan (const struct bitmap *b, size_t start, size_t cnt, bool value)
 }
 
 size_t
+bitmap_scan_best_fit (const struct bitmap *b, size_t cnt, bool value)
+{
+    ASSERT (b != NULL);
+
+    if (cnt <= b->bit_cnt)
+    {
+        size_t last = b->bit_cnt - cnt;
+        size_t i;
+        size_t best_idx = BITMAP_ERROR;
+        size_t best_size = SIZE_MAX;
+
+        for (i = 0; i <= last; i++) {
+            if (!bitmap_contains (b, i, cnt, !value))
+            {
+                size_t current_size = cnt;
+
+                while (i + current_size < b->bit_cnt && !bitmap_test (b, i + current_size)) {
+                    current_size++;
+		      }
+                if (current_size < best_size) {
+                    best_size = current_size;
+                    best_idx = i;
+
+                    if (best_size == cnt) {
+                        break;
+                    }
+                }
+                i += current_size - 1;
+            } else {
+                i += bitmap_count(b, i, b->bit_cnt - i, true);
+                i--;
+            }
+        }
+        return best_idx;
+    }
+    return BITMAP_ERROR;
+}
+
+size_t
 bitmap_scan_and_flip_best_fit (struct bitmap *b, size_t cnt, bool value)
 {
     size_t idx = bitmap_scan_best_fit (b, cnt, value);
