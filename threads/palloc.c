@@ -309,12 +309,6 @@ init_pool (struct pool *p, void *base, size_t page_cnt, const char *name)
     if (order > MAX_ORDER) {
         order = MAX_ORDER; 
     }
-    p->max_order = order;
-    
-    /* 2. 자유 리스트 초기화 및 가장 큰 블록(max_order) 추가 */
-    for (size_t i = 0; i <= p->max_order; i++) {
-        list_init(&p->free_list[i]);
-    }
 
     /* Next Fit 초기화 (Next Fit이 구현된 경우) */
     p->next_fit_start_idx = 0;
