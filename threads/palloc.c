@@ -33,12 +33,7 @@ struct pool
     uint8_t *base;           /* Base of pool. */
 
     size_t next_fit_start_idx; /* Next Fit의 검색 시작 지점 */
-
-/* Buddy System을 위한 추가 필드 */
-    struct list free_list[MAX_ORDER + 1]; /* 예를 들어, 0 ~ MAX_ORDER 크기의 자유 리스트 */
-    size_t max_order; /* 최대 블록 크기의 order */
-    size_t *block_order; /* 각 페이지의 order를 저장하는 배열 (선택) */
-};
+}
 
 /* Two pools: one for kernel data, one for user pages. */
 static struct pool kernel_pool, user_pool;
@@ -55,7 +50,6 @@ static size_t find_next_fit (struct pool *pool, size_t page_cnt);
 static size_t find_best_fit (struct pool *pool, size_t page_cnt);
 
 void palloc_set_mode (enum palloc_mode mode);
-
 
 void palloc_set_mode (enum palloc_mode mode) {
     current_palloc_mode = mode;
@@ -202,8 +196,6 @@ palloc_get_multiple (enum palloc_flags flags, size_t page_cnt)
             if (flags & PAL_ASSERT)
                 PANIC ("palloc_get: out of pages");
         }
-
-    lock_release (&pool->lock);
     return pages;
 }
 
@@ -244,12 +236,12 @@ palloc_free_multiple (void *pages, size_t page_cnt)
       memset (pages, 0xcc, PGSIZE * page_cnt);
    #endif
 
-    if (current_palloc_mode == PAL_BUDDY) {
-       palloc_free_multiple (pool, pages);
-    } else {
-       bitmap_set_multiple (pool->used_map, page_idx, page_cnt, false);
-    }
-   lock_release (&pool->lock);
+    lock_acquire (&pool->lock);
+    
+    ASSERT (bitmap_all (pool->used_map, page_idx, page_cnt));
+    bitmap_set_multiple (pool->used_map, page_idx, page_cnt, false);
+   
+    lock_release (&pool->lock);
 }
 
 /* Frees the page at PAGE. */
@@ -257,21 +249,6 @@ void
 palloc_free_page (void *page)
 {
     palloc_free_multiple (page, 1);
-}
-
-static void
-buddy_system_free_pages (struct pool *pool, void *pages, size_t page_cnt)
-{
-    size_t page_idx = pg_no (pages) - pg_no (pool->base);
-    
-    /* 현재는 기본 bitmap 방식으로 처리 (TODO: 실제 buddy system 구현) */
-    bitmap_set_multiple (pool->used_map, page_idx, page_cnt, false);
-    
-    /* TODO: Buddy system 로직 추가
-       - 블록 병합 (coalescing)
-       - free_list에 추가
-       - buddy 찾기 및 병합
-    */
 }
 
 void
@@ -293,9 +270,8 @@ buddy_system_free (struct pool *pool, void *pages)
     }
     
     /* 비트맵에서 해제 */
+    ASSERT (bitmap_all (pool->used_map, page_idx, page_cnt));
     bitmap_set_multiple (pool->used_map, page_idx, page_cnt, false);
-    
-    lock_release (&pool->lock);
 }
 
 /* Initializes pool P as starting at START and ending at END,
@@ -318,7 +294,6 @@ init_pool (struct pool *p, void *base, size_t page_cnt, const char *name)
     p->used_map = bitmap_create_in_buf (page_cnt, base, bm_pages * PGSIZE);
     p->base = base + bm_pages * PGSIZE;
     p->page_cnt = page_cnt;
-    p->next_fit_start_idx = 0;
 }
 
 /* Returns true if PAGE was allocated from POOL,
