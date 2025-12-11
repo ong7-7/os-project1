@@ -35,16 +35,16 @@ struct pool
     size_t next_fit_start_idx; /* Next Fit의 검색 시작 지점 */
 
 /* Buddy System을 위한 추가 필드 */
-    struct list free_list[MAX_ORDER + 1]; // 예를 들어, 0 ~ MAX_ORDER 크기의 자유 리스트
-    size_t max_order; // 최대 블록 크기의 order
-    size_t *block_order; // 각 페이지의 order를 저장하는 배열 (선택)
+    struct list free_list[MAX_ORDER + 1]; /* 예를 들어, 0 ~ MAX_ORDER 크기의 자유 리스트 */
+    size_t max_order; /* 최대 블록 크기의 order */
+    size_t *block_order; /* 각 페이지의 order를 저장하는 배열 (선택) */
 };
 
 /* Two pools: one for kernel data, one for user pages. */
 static struct pool kernel_pool, user_pool;
 
 static enum palloc_mode current_palloc_mode = PAL_FIRST_FIT;
-// 기본값은 First Fit
+/* 기본값은 First Fit */
 
 static void init_pool (struct pool *, void *base, size_t page_cnt,
                        const char *name);
@@ -143,10 +143,10 @@ palloc_free_multiple (void *pages, size_t page_cnt)
         return;
 
     if (current_palloc_mode == PAL_BUDDY) {
-        // Buddy System 해제(병합) 로직 호출 (추가 구현 필요)
+        /* Buddy System 해제(병합) 로직 호출 (추가 구현 필요) */
         buddy_system_free (pool, pages);
     } else {
-        // First/Next/Best Fit 해제 로직 (기존과 동일)
+        /* First/Next/Best Fit 해제 로직 (기존과 동일) */
         ASSERT (bitmap_all (pool->used_map, page_idx, page_cnt));
         bitmap_set_multiple (pool->used_map, page_idx, page_cnt, false);
     }
