@@ -1,9 +1,9 @@
 #ifndef THREADS_PALLOC_H
 #define THREADS_PALLOC_H
-#define MAX_ORDER 10
 
 #include <stddef.h>
 
+#define MAX_ORDER 10
 struct pool;
 
 /* How to allocate pages. */
