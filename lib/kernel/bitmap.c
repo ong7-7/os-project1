@@ -320,36 +320,36 @@ bitmap_scan_best_fit (const struct bitmap *b, size_t cnt, bool value)
         size_t last = b->bit_cnt - cnt;
         size_t i;
         size_t best_idx = BITMAP_ERROR;
-        size_t best_size = SIZE_MAX; // 가장 작은 공간 크기
+        size_t best_size = SIZE_MAX; /* 가장 작은 공간 크기 */
 
         for (i = 0; i <= last; i++)
         {
-            // 현재 위치 i에서 'value'가 아닌 비트가 없는지 확인 (즉, cnt 크기의 블록이 모두 'value'인지 확인)
+            /* 현재 위치 i에서 'value'가 아닌 비트가 없는지 확인 (즉, cnt 크기의 블록이 모두 'value'인지 확인) */
             if (!bitmap_contains (b, i, cnt, !value))
             {
-                // 여기는 최소한 'cnt' 크기의 블록은 확보된 경우.
+                /* 여기는 최소한 'cnt' 크기의 블록은 확보된 경우. */
                 size_t current_size = cnt;
-                
-                // 실제 빈 공간의 끝을 찾아서 크기(current_size)를 계산합니다.
+                /* 실제 빈 공간의 끝을 찾아서 크기(current_size)를 계산합니다. */
                 while (i + current_size < b->bit_cnt && !bitmap_test (b, i + current_size)) {
                     current_size++;
                 }
 
-                // Best Fit 조건: 요청 크기(cnt)를 만족하면서 현재까지 찾은 최소 크기(best_size)보다 작은 경우
+                /* Best Fit 조건: 요청 크기(cnt)를 만족하면서 현재까지 찾은 최소 크기(best_size)보다 작은 경우 */
                 if (current_size < best_size) {
                     best_size = current_size;
                     best_idx = i;
                     
-                    // 최적의 공간(요청 크기)을 찾으면 더 이상 검색할 필요가 없습니다.
+                    /* 최적의 공간(요청 크기)을 찾으면 더 이상 검색할 필요가 없습니다. */
                     if (best_size == cnt) {
                         break;
                     }
                 }
-                // 현재 찾은 블록의 크기(current_size)만큼 검색을 건너뛸 수 있습니다.
-                i += current_size;
+                /* 현재 찾은 블록의 크기(current_size)만큼 검색을 건너뛸 수 있습니다. */
+                i += current_size - 1;
             } else {
-                // 할당된 블록을 건너뛰기
+                /* 할당된 블록을 건너뛰기 */
                 i += bitmap_count(b, i, b->bit_cnt - i, true);
+                i--;
             }
         }
         return best_idx;
