@@ -33,7 +33,7 @@ struct pool
     uint8_t *base;           /* Base of pool. */
 
     size_t next_fit_start_idx; /* Next Fit의 검색 시작 지점 */
-}
+};
 
 /* Two pools: one for kernel data, one for user pages. */
 static struct pool kernel_pool, user_pool;
