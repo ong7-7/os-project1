@@ -170,6 +170,21 @@ palloc_free_page (void *page)
     palloc_free_multiple (page, 1);
 }
 
+static void
+buddy_system_free_pages (struct pool *pool, void *pages, size_t page_cnt)
+{
+    size_t page_idx = pg_no (pages) - pg_no (pool->base);
+    
+    /* 현재는 기본 bitmap 방식으로 처리 (TODO: 실제 buddy system 구현) */
+    bitmap_set_multiple (pool->used_map, page_idx, page_cnt, false);
+    
+    /* TODO: Buddy system 로직 추가
+       - 블록 병합 (coalescing)
+       - free_list에 추가
+       - buddy 찾기 및 병합
+    */
+}
+
 void
 buddy_system_free (struct pool *pool, void *pages)
 {
