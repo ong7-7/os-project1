@@ -95,7 +95,25 @@ palloc_get_multiple (enum palloc_flags flags, size_t page_cnt)
         return NULL;
 
     lock_acquire (&pool->lock);
-    page_idx = bitmap_scan_and_flip (pool->used_map, 0, page_cnt, false);
+
+   switch (current_palloc_mode)
+    {
+        case PAL_NEXT_FIT:
+            page_idx = find_next_fit (pool, page_cnt);
+            break;
+        case PAL_BEST_FIT:
+            page_idx = find_best_fit (pool, page_cnt);
+            break;
+        case PAL_BUDDY:
+            /* TODO: Buddy System 구현 */
+            page_idx = find_first_fit (pool, page_cnt);
+            break;
+        case PAL_FIRST_FIT:
+        default:
+            page_idx = find_first_fit (pool, page_cnt);
+            break;
+    }
+
     lock_release (&pool->lock);
    
     if (page_idx != BITMAP_ERROR)
@@ -228,6 +246,8 @@ init_pool (struct pool *p, void *base, size_t page_cnt, const char *name)
     lock_init (&p->lock);
     p->used_map = bitmap_create_in_buf (page_cnt, base, bm_pages * PGSIZE);
     p->base = base + bm_pages * PGSIZE;
+    p->page_cnt = page_cnt;
+    p->next_fit_start_idx = 0;
 }
 
 /* Returns true if PAGE was allocated from POOL,
