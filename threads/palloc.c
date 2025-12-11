@@ -33,10 +33,6 @@ struct pool
     uint8_t *base;           /* Base of pool. */
 
     size_t next_fit_start_idx; /* Next Fit의 검색 시작 지점 */
-
-    size_t page_cnt;           /*이 풀이 관리하는 총 페이지 수*/
-    struct list free_list[MAX_ORDER + 1]; /* Order별 자유 블록 리스트*/
-    size_t max_order;          /*최대 Order 값*/
 };
 
 /* Two pools: one for kernel data, one for user pages. */
@@ -297,7 +293,31 @@ init_pool (struct pool *p, void *base, size_t page_cnt, const char *name)
     lock_init (&p->lock);
     p->used_map = bitmap_create_in_buf (page_cnt, base, bm_pages * PGSIZE);
     p->base = base + bm_pages * PGSIZE;
-    p->page_cnt = page_cnt;
+
+    size_t order = 0;
+    size_t pages_per_block = 1;
+    while (pages_per_block < page_cnt) {
+        pages_per_block *= 2;
+        order++;
+    }
+    /* 페이지 수가 정확히 2의 제곱이 아닐 경우, 다음 2의 제곱으로 올림 */
+    if (pages_per_block / 2 >= page_cnt) {
+        order--; 
+    }
+    
+    /* max_order는 미리 정의된 MAX_ORDER를 초과할 수 없습니다. */
+    if (order > MAX_ORDER) {
+        order = MAX_ORDER; 
+    }
+    p->max_order = order;
+    
+    /* 2. 자유 리스트 초기화 및 가장 큰 블록(max_order) 추가 */
+    for (size_t i = 0; i <= p->max_order; i++) {
+        list_init(&p->free_list[i]);
+    }
+
+    /* Next Fit 초기화 (Next Fit이 구현된 경우) */
+    p->next_fit_start_idx = 0;
 }
 
 /* Returns true if PAGE was allocated from POOL,
