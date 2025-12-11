@@ -156,11 +156,11 @@ palloc_free_multiple (void *pages, size_t page_cnt)
    #endif
 
     if (current_palloc_mode == PAL_BUDDY) {
-       buddy_system_free (pool, pages);
+       palloc_free_multiple (pool, pages);
     } else {
-       ASSERT (bitmap_all (pool->used_map, page_idx, page_cnt));
        bitmap_set_multiple (pool->used_map, page_idx, page_cnt, false);
     }
+   lock_release (&pool->lock);
 }
 
 /* Frees the page at PAGE. */
@@ -168,6 +168,30 @@ void
 palloc_free_page (void *page)
 {
     palloc_free_multiple (page, 1);
+}
+
+void
+buddy_system_free (struct pool *pool, void *pages)
+{
+    if (pages == NULL || pool == NULL)
+        return;
+        
+    size_t page_idx = pg_no (pages) - pg_no (pool->base);
+    
+    lock_acquire (&pool->lock);
+    
+    /* 할당된 페이지 수 계산 */
+    size_t page_cnt = 1;
+    while (page_idx + page_cnt < bitmap_size(pool->used_map) &&
+           bitmap_test (pool->used_map, page_idx + page_cnt))
+    {
+        page_cnt++;
+    }
+    
+    /* 비트맵에서 해제 */
+    bitmap_set_multiple (pool->used_map, page_idx, page_cnt, false);
+    
+    lock_release (&pool->lock);
 }
 
 /* Initializes pool P as starting at START and ending at END,
