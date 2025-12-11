@@ -33,6 +33,10 @@ struct pool
     uint8_t *base;           /* Base of pool. */
 
     size_t next_fit_start_idx; /* Next Fit의 검색 시작 지점 */
+
+    size_t page_cnt;           /*이 풀이 관리하는 총 페이지 수*/
+    struct list free_list[MAX_ORDER + 1]; /* Order별 자유 블록 리스트*/
+    size_t max_order;          /*최대 Order 값*/
 };
 
 /* Two pools: one for kernel data, one for user pages. */
