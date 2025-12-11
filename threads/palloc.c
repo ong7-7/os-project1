@@ -50,6 +50,10 @@ static void init_pool (struct pool *, void *base, size_t page_cnt,
                        const char *name);
 static bool page_from_pool (const struct pool *, void *page);
 
+static size_t find_first_fit (struct pool *pool, size_t page_cnt);
+static size_t find_next_fit (struct pool *pool, size_t page_cnt);
+static size_t find_best_fit (struct pool *pool, size_t page_cnt);
+
 void palloc_set_mode (enum palloc_mode mode);
 
 
@@ -76,6 +80,73 @@ palloc_init (size_t user_page_limit)
     init_pool (&kernel_pool, free_start, kernel_pages, "kernel pool");
     init_pool (&user_pool, free_start + kernel_pages * PGSIZE,
                user_pages, "user pool");
+}
+
+/* First Fit: 처음부터 검색하여 첫 번째로 찾은 적합한 공간 할당 */
+static size_t
+find_first_fit (struct pool *pool, size_t page_cnt)
+{
+    return bitmap_scan_and_flip (pool->used_map, 0, page_cnt, false);
+}
+
+/* Next Fit: 이전 할당 위치부터 검색 시작 */
+static size_t
+find_next_fit (struct pool *pool, size_t page_cnt)
+{
+    size_t page_idx = bitmap_scan_and_flip (pool->used_map, 
+                                             pool->next_fit_start_idx, 
+                                             page_cnt, false);
+    
+    /* 끝까지 찾았는데 없으면 처음부터 다시 검색 */
+    if (page_idx == BITMAP_ERROR && pool->next_fit_start_idx > 0)
+        page_idx = bitmap_scan_and_flip (pool->used_map, 0, page_cnt, false);
+    
+    if (page_idx != BITMAP_ERROR)
+        pool->next_fit_start_idx = page_idx + page_cnt;
+    
+    return page_idx;
+}
+
+/* Best Fit: 전체를 검색하여 가장 적합한 (가장 작은) 공간 할당 */
+static size_t
+find_best_fit (struct pool *pool, size_t page_cnt)
+{
+    size_t best_idx = BITMAP_ERROR;
+    size_t best_size = SIZE_MAX;
+    size_t idx = 0;
+    
+    /* 모든 가능한 위치를 검색 */
+    while (idx < bitmap_size(pool->used_map))
+    {
+        size_t free_start = bitmap_scan (pool->used_map, idx, 1, false);
+        if (free_start == BITMAP_ERROR)
+            break;
+        
+        /* 연속된 free page 개수 계산 */
+        size_t free_cnt = 0;
+        while (free_start + free_cnt < bitmap_size(pool->used_map) &&
+               !bitmap_test(pool->used_map, free_start + free_cnt))
+            free_cnt++;
+        
+        /* 요구하는 크기 이상이고, 지금까지 찾은 것보다 작으면 갱신 */
+        if (free_cnt >= page_cnt && free_cnt < best_size)
+        {
+            best_idx = free_start;
+            best_size = free_cnt;
+            
+            /* 정확히 맞는 크기를 찾으면 즉시 반환 */
+            if (free_cnt == page_cnt)
+                break;
+        }
+        
+        idx = free_start + free_cnt;
+    }
+    
+    /* 찾았으면 할당 */
+    if (best_idx != BITMAP_ERROR)
+        bitmap_set_multiple (pool->used_map, best_idx, page_cnt, true);
+    
+    return best_idx;
 }
 
 /* Obtains and returns a group of PAGE_CNT contiguous free pages.
