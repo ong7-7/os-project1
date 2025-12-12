@@ -95,16 +95,19 @@ find_next_fit (struct pool *pool, size_t page_cnt)
     
     /* 끝까지 찾았는데 없으면 처음부터 다시 검색 */
     if (page_idx == BITMAP_ERROR) {
-        page_idx = bitmap_scan_and_flip (pool->used_map, 0, page_cnt, false);
+        page_idx = bitmap_scan (pool->used_map, 0, page_cnt, false);
     }
     
     if (page_idx != BITMAP_ERROR) {
+        /* 비트맵에 할당 표시 */
+        bitmap_set_multiple (pool->used_map, page_idx, page_cnt, true);
+        
         size_t next_start = page_idx + page_cnt;
-
-       if (pool->next_fit_start_idx >= bitmap_len) {
+        if (next_start >= bitmap_len) {
             pool->next_fit_start_idx = 0;
         } else {
             pool->next_fit_start_idx = next_start;
+        }
     }
     
     return page_idx;
@@ -285,6 +288,8 @@ buddy_system_free (struct pool *pool, void *pages)
     /* 비트맵에서 해제 */
     ASSERT (bitmap_all (pool->used_map, page_idx, page_cnt));
     bitmap_set_multiple (pool->used_map, page_idx, page_cnt, false);
+    
+    lock_release (&pool->lock);
 }
 
 /* Initializes pool P as starting at START and ending at END,
@@ -293,8 +298,8 @@ static void
 init_pool (struct pool *p, void *base, size_t page_cnt, const char *name)
 {
     /* We'll put the pool's used_map at its base.
-     Calculate the space needed for the bitmap
-     and subtract it from the pool's size. */
+       Calculate the space needed for the bitmap
+       and subtract it from the pool's size. */
     size_t bm_pages = DIV_ROUND_UP (bitmap_buf_size (page_cnt), PGSIZE);
     if (bm_pages > page_cnt)
         PANIC ("Not enough memory in %s for bitmap.", name);
@@ -307,23 +312,7 @@ init_pool (struct pool *p, void *base, size_t page_cnt, const char *name)
     p->used_map = bitmap_create_in_buf (page_cnt, base, bm_pages * PGSIZE);
     p->base = base + bm_pages * PGSIZE;
 
-    size_t order = 0;
-    size_t pages_per_block = 1;
-    while (pages_per_block < page_cnt) {
-        pages_per_block *= 2;
-        order++;
-    }
-    /* 페이지 수가 정확히 2의 제곱이 아닐 경우, 다음 2의 제곱으로 올림 */
-    if (pages_per_block / 2 >= page_cnt) {
-        order--; 
-    }
-    
-    /* max_order는 미리 정의된 MAX_ORDER를 초과할 수 없습니다. */
-    if (order > MAX_ORDER) {
-        order = MAX_ORDER; 
-    }
-
-    /* Next Fit 초기화 (Next Fit이 구현된 경우) */
+    /* Next Fit 초기화 */
     p->next_fit_start_idx = 0;
 }
 
