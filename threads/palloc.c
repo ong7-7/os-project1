@@ -87,16 +87,25 @@ find_first_fit (struct pool *pool, size_t page_cnt)
 static size_t
 find_next_fit (struct pool *pool, size_t page_cnt)
 {
-    size_t page_idx = bitmap_scan_and_flip (pool->used_map, 
-                                             pool->next_fit_start_idx, 
-                                             page_cnt, false);
+    size_t page_idx = BITMAP_ERROR;
+    size_t bitmap_len = bitmap_size(pool->used_map);
+    size_t start_idx = pool->next_fit_start_idx;
+
+    page_idx = bitmap_scan (pool->used_map, start_idx, page_cnt, false);
     
     /* 끝까지 찾았는데 없으면 처음부터 다시 검색 */
-    if (page_idx == BITMAP_ERROR && pool->next_fit_start_idx > 0)
+    if (page_idx == BITMAP_ERROR) {
         page_idx = bitmap_scan_and_flip (pool->used_map, 0, page_cnt, false);
+    }
     
-    if (page_idx != BITMAP_ERROR)
-        pool->next_fit_start_idx = page_idx + page_cnt;
+    if (page_idx != BITMAP_ERROR) {
+        size_t next_start = page_idx + page_cnt;
+
+       if (pool->next_fit_start_idx >= bitmap_len) {
+            pool->next_fit_start_idx = 0;
+        } else {
+            pool->next_fit_start_idx = next_start;
+    }
     
     return page_idx;
 }
@@ -118,9 +127,13 @@ find_best_fit (struct pool *pool, size_t page_cnt)
         
         /* 연속된 free page 개수 계산 */
         size_t free_cnt = 0;
-        while (free_start + free_cnt < bitmap_size(pool->used_map) &&
-               !bitmap_test(pool->used_map, free_start + free_cnt))
+        size_t current_idx = free_start;
+        while (current_idx < bitmap_size(pool->used_map) &&
+                !bitmap_test(pool->used_map, current_idx))
+        {
             free_cnt++;
+            current_idx++;
+        }
         
         /* 요구하는 크기 이상이고, 지금까지 찾은 것보다 작으면 갱신 */
         if (free_cnt >= page_cnt && free_cnt < best_size)
