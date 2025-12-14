@@ -2,9 +2,19 @@
 #define THREADS_PALLOC_H
 
 #include <stddef.h>
+#include "threads/synch.h"
+#include "lib/kernel/bitmap.h"
 
 #define MAX_ORDER 10
-struct pool;
+struct pool {
+    struct lock lock;
+    struct bitmap *used_map;
+    uint8_t *base;
+    size_t next_fit_start_idx;
+};
+
+extern struct pool kernel_pool;
+extern struct pool user_pool;
 
 /* How to allocate pages. */
 enum palloc_flags {
@@ -21,7 +31,7 @@ void palloc_free_multiple(void *, size_t page_cnt);
 size_t palloc_get_page_index(void *page);
 void buddy_system_free (struct pool *pool, void *pages);
 size_t buddy_system_alloc (struct pool *pool, size_t page_cnt);
-
+size_t palloc_get_page_index(void *page);
 
 
 
