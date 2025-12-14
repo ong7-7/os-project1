@@ -8,3 +8,4 @@ check_expected ([<<'EOF']);
 (buddy) Allocated B at index 4
 (buddy) end
 EOF
+pass;
